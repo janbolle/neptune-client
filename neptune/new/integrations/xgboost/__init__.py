@@ -41,6 +41,10 @@ class NeptuneCallback(xgb.callback.TrainingCallback):
 
     def after_training(self, model):
         self.run['/'.join([self.base_namespace, 'booster_config'])] = json.loads(model.save_config())
+        if 'best_score' in model.attributes().keys():
+            self.run['/'.join([self.base_namespace, 'best_score'])] = model.attributes()['best_score']
+        if 'best_iteration' in model.attributes().keys():
+            self.run['/'.join([self.base_namespace, 'best_iteration'])] = model.attributes()['best_iteration']
 
         if self.log_importance:
             importance = xgb.plot_importance(model, max_num_features=self.max_num_features)
