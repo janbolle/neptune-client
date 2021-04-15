@@ -28,7 +28,7 @@ class NeptuneCallback(xgb.callback.TrainingCallback):
                  log_model=True,
                  log_importance=True,  # requires matplotlib
                  max_num_features=None,  # requires matplotlib
-                 log_tree=False):  # requires graphviz
+                 log_tree=None):  # requires graphviz
         self.run = run
         if base_namespace is None:
             self.base_namespace = 'training'
