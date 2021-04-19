@@ -22,13 +22,19 @@ import neptune.new as neptune
 
 
 class NeptuneCallback(xgb.callback.TrainingCallback):
+    """
+    ToDo for developer:
+
+    - check docs about xgboost callbacks: https://xgboost.readthedocs.io/en/latest/python/callbacks.html
+    - demo on how to write xgboost callbacks: https://github.com/dmlc/xgboost/blob/master/demo/guide-python/callbacks.py
+    """
     def __init__(self,
-                 run,
-                 base_namespace=None,
-                 log_model=True,
-                 log_importance=True,  # requires matplotlib
-                 max_num_features=None,  # requires matplotlib
-                 log_tree=None):  # requires graphviz
+                 run,  # Neptune run, required
+                 base_namespace=None,  # if none we apply 'training' by default
+                 log_model=True,  # log model as pickled object at the end of training
+                 log_importance=True,  # requires matplotlib, log feature importance chart at the end of training
+                 max_num_features=None,  # requires matplotlib, number of top features on the feature importance chart
+                 log_tree=None):  # requires graphviz, indices of trained trees to log as chart, i.e. [0, 1, 2]
         self.run = run
         if base_namespace is None:
             self.base_namespace = 'training'
@@ -46,6 +52,7 @@ class NeptuneCallback(xgb.callback.TrainingCallback):
         return model
 
     def after_training(self, model):
+        # model structure is different for 'cv' and 'train' functions that you use to train xgb model
         if self.cv:
             for i, fold in enumerate(model.cvfolds):
                 self.run['/'.join([self.base_namespace, 'fold_{}'.format(i), 'booster_config'])]\
@@ -58,6 +65,7 @@ class NeptuneCallback(xgb.callback.TrainingCallback):
                 self.run['/'.join([self.base_namespace, 'best_iteration'])] = model.attributes()['best_iteration']
 
         if self.log_importance:
+            # for 'cv' log importance chart per fold
             if self.cv:
                 for i, fold in enumerate(model.cvfolds):
                     importance = xgb.plot_importance(fold.bst, max_num_features=self.max_num_features)
@@ -71,6 +79,7 @@ class NeptuneCallback(xgb.callback.TrainingCallback):
                 plt.close('all')
 
         if self.log_tree is not None:
+            # for 'cv' log trees for each cv fold (different model is trained on each fold)
             if self.cv:
                 for i, fold in enumerate(model.cvfolds):
                     trees = []
@@ -89,6 +98,7 @@ class NeptuneCallback(xgb.callback.TrainingCallback):
                 plt.close('all')
 
         if self.log_model:
+            # for 'cv' log model per fold
             if self.cv:
                 for i, fold in enumerate(model.cvfolds):
                     self.run['/'.join([self.base_namespace, 'fold_{}'.format(i), 'model_pickle'])].upload(
