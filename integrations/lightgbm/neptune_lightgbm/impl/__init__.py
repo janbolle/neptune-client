@@ -16,7 +16,7 @@
 
 import neptune.new as neptune
 
-from neptune_lightgbm import __version__
+# from neptune_lightgbm import __version__
 
 from neptune.new.internal.utils import verify_type
 
@@ -75,11 +75,27 @@ class NeptuneCallback:
 
         self._run = run
         self._base_namespace = base_namespace
+        self.params_logged = False
 
-        self._run['source_code/integrations/neptune-lightgbm'] = __version__
+        # self._run['source_code/integrations/neptune-lightgbm'] = __version__
 
     def __call__(self, env):
-        for name, loss_name, loss_value, _ in env.evaluation_result_list:
-            channel_name = '{}{}_{}'.format(self._base_namespace, name, loss_name)
-            self._run[channel_name].log(loss_value, step=env.iteration)
+        # log params
+        if not self.params_logged:
+            self._run["{}/params".format(self._base_namespace)] = env.params
+            self._run["{}/params/begin_iteration".format(self._base_namespace)] = env.begin_iteration
 
+        # log metrics
+        for row in env.evaluation_result_list:
+            # lgb.train
+            if len(row) == 4:
+                dataset, metric, value, _ = row
+                log_name = '{}/{}/{}'.format(self._base_namespace, dataset, metric)
+                self._run[log_name].log(value, step=env.iteration)
+            # lgb.cv
+            if len(row) == 5:
+                dataset, metric, value, _, std = row
+                log_val_name = '{}/{}/{}/val'.format(self._base_namespace, dataset, metric)
+                self._run[log_val_name].log(value, step=env.iteration)
+                log_std_name = '{}/{}/{}/std'.format(self._base_namespace, dataset, metric)
+                self._run[log_std_name].log(std, step=env.iteration)
